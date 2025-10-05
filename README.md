@@ -23,7 +23,7 @@ left empty.
 The directory `figures/` is populated by graphics that the scripts
 produce.
 
-# R version and contributed packages
+# Julia version and contributed packages
 
 All results are reproducible using Julia version 1.11.7 and the
 contributed packages

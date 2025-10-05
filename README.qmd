@@ -1,5 +1,5 @@
 ---
-title: 'Supplementary material for "Maximum softly penalized likelihood in factor analysis"'
+title: 'Supplementary material for "Maximum softly penalised likelihood in factor analysis"'
 author:
   - name: "Philipp Sterzinger"
     email: p.sterzinger@lse.ac.uk
@@ -52,7 +52,7 @@ rownames(julia_pkgs_v) <- NULL
 The directory `code/` contains the Julia scripts that reproduce
 all the numerical results and figures in the manuscript
 
-> Sterzinger P, Kosmidis I and Moustaki I (2025). Maximum softly penalized likelihood in factor analysis. ** add arxiv link ** 
+> Sterzinger P, Kosmidis I and Moustaki I (2025). Maximum softly penalised likelihood in factor analysis. ** add arxiv link ** 
 
 and the Supplementary Material document [`fapl-supplementary.pdf`](fapl-supplementary.pdf).
 

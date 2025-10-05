@@ -1,4 +1,4 @@
-# Supplementary material for “Maximum softly penalized likelihood in
+# Supplementary material for “Maximum softly penalised likelihood in
 factor analysis”
 Philipp Sterzinger, Ioannis Kosmidis, Irini Moustaki
 October 5, 2025

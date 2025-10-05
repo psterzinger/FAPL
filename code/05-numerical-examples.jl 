@@ -1,0 +1,396 @@
+using JLD2, Optim, LinearAlgebra, LineSearches, CairoMakie, LaTeXStrings, ColorSchemes, Printf
+
+supp_path = abspath(joinpath(@__DIR__, ".."))
+include(joinpath(supp_path, "code", "methods", "FactorModels.jl"))
+using .FactorModels
+
+function print_communalities_master_table(datasets...; caption = "Estimated communalities (×10^3) with AIC and BIC.", width = 1, use_small = true, self_contained = true, heywood_eps = 0.0)
+    io = IOBuffer()
+    Pmax = maximum(d.p for d in datasets)
+    if self_contained
+        println(io, "\\documentclass{article}")
+        println(io, "\\usepackage{adjustbox, booktabs, array}")
+        println(io, "\\newcolumntype{C}{>{\\centering\\arraybackslash}c}")
+        println(io, "\\newcolumntype{R}{>{\\raggedleft\\arraybackslash}r}")
+        println(io, "\\begin{document}")
+    end
+    ncols = 2 + Pmax + 2
+    println(io, "\\begin{table}")
+    println(io, "\\centering")
+    println(io, "\\caption{$caption}")
+    if use_small println(io, "\\begin{small}") end
+    println(io, "\\begin{adjustbox}{max width=$(width)\\textwidth, keepaspectratio}")
+    colspec = "C" * "C" * join(fill("R", Pmax)) * "RR"
+    println(io, "\\begin{tabular}{$colspec}")
+    println(io, "\\toprule")
+    println(io, " &  & \\multicolumn{$Pmax}{c}{Item} &  \\\\ \\cmidrule{3-$(2+Pmax)}")
+    header_items = join(["\\multicolumn{1}{c}{$i}" for i in 1:Pmax], " & ")
+    println(io, "\\textrm{Method} & q & $header_items & \\textrm{AIC} & \\textrm{BIC} \\\\ \\midrule")
+    for (didx, d) in enumerate(datasets)
+        println(io, "\\multicolumn{$ncols}{c}{\\textrm{$(d.name)}} \\\\ \\midrule")
+        methods = unique(e.method for e in d.estimates)
+        for m in methods
+            for q in d.qs
+                est = nothing
+                for e in d.estimates
+                    if e.method == m && e.q == q
+                        est = e
+                        break
+                    end
+                end
+                if est === nothing
+                    continue
+                end
+                λ = est.lambda
+                ψ = est.psi
+                comm = diag(λ * λ')
+                vals = String[]
+                for i in 1:d.p
+                    c = comm[i]
+                    hey = (c > 1.0 + heywood_eps) || (i <= length(ψ) && ψ[i] < 0.0 - heywood_eps)
+                    s = string(round(Int, c * 1000))
+                    push!(vals, hey ? "\\textbf{$s}" : s)
+                end
+                if d.p < Pmax
+                    append!(vals, fill("", Pmax - d.p))
+                end
+                aic = @sprintf("%.2f", est.AIC)
+                bic = @sprintf("%.2f", est.BIC)
+                if q == d.qs[1]
+                    row = "\\text{$(m)} & $q & " * join(vals, " & ") * " & " * aic * " & " * bic * " \\\\" 
+                elseif q == d.qs[end] && !(m == methods[end])
+                    row = "& $q & " * join(vals, " & ") * " & " * aic * " & " * bic * " \\\\ \\midrule" 
+                else
+                    row = "& $q & " * join(vals, " & ") * " & " * aic * " & " * bic * " \\\\" 
+                end 
+                println(io, row)
+            end
+        end
+        if didx < length(datasets)
+            println(io, "\\midrule")
+        else
+            println(io, "\\bottomrule")
+        end
+    end
+    println(io, "\\end{tabular}")
+    println(io, "\\end{adjustbox}")
+    if use_small println(io, "\\end{small}") end
+    println(io, "\\end{table}")
+    if self_contained println(io, "\\end{document}") end
+    seekstart(io)
+    print(String(take!(io)))
+end
+
+function print_estimates_table(p, qs, meths, estimate_tuples...; caption = "", label = "", box = :width, box_size = "\\textwidth", self_contained = true)
+    io = IOBuffer()
+    maxq = maximum(qs)
+    if self_contained
+        println(io, "\\documentclass{article}")
+        println(io, "\\usepackage{adjustbox, booktabs, array, amsmath, amssymb, float}")
+        println(io, "\\newcolumntype{C}{>{\\centering\\arraybackslash}c}")
+        println(io, "\\newcolumntype{R}{>{\\raggedleft\\arraybackslash}r}")
+        println(io, "\\newcommand*{\\bb}{\\boldsymbol}")
+        println(io, "\\def\\bLambda{\\bb{\\Lambda}}")
+        println(io, "\\def\\bPsi{\\bb{\\Psi}}")
+        println(io, "\\begin{document}")
+    end
+
+    nm = length(meths)
+    data_cols_per_method = maxq + 1
+    spacer_cols = nm - 1
+    total_cols = 2 + nm*data_cols_per_method + spacer_cols
+
+    println(io, "\\begin{table}[H]")
+    println(io, "\\centering")
+    println(io, "\\caption{$caption}")
+    if !isempty(label) println(io, "\\label{$label}") end
+    if box == :width
+        println(io, "\\begin{adjustbox}{width=$box_size, keepaspectratio}")
+    else
+        println(io, "\\begin{adjustbox}{height=$box_size, keepaspectratio}")
+    end
+    colspec = "CC" * join(fill("R", total_cols - 2))
+    println(io, "\\begin{tabular}{$colspec}")
+    println(io, "\\toprule")
+
+    header_line = "q & \\text{Item}"
+    for (k, m) in enumerate(meths)
+        header_line *= " & \\multicolumn{$data_cols_per_method}{c}{" * (occursin("\\text", m) ? m : "\\text{$m}") * "}"
+        if k < nm header_line *= " & " end
+    end
+    println(io, header_line, "\\\\  ", join(["\\cmidrule{$(3+(k-1)*(data_cols_per_method+1))-" *
+                                              string(3+(k-1)*(data_cols_per_method+1)+data_cols_per_method-1) * "}" for k in 1:nm], " "))
+
+    subhdr = " &  "
+    for k in 1:nm
+        for j in 1:maxq
+            subhdr *= " & \\bLambda_{\\bullet, $j}"
+        end
+        subhdr *= " & \\bPsi"
+        if k < nm subhdr *= " & " end
+    end
+    println(io, subhdr, " \\\\ \\midrule")
+
+    function fmt(x)
+        if abs(x) < 0.01
+            x < 0 ? "-0.00" : "0.00"
+        else
+            @sprintf("%.2f", x)
+        end
+    end
+
+    smethod(x) = String(x)
+
+    for (qi, q) in enumerate(qs)
+        for i in 1:p
+            row = String[]
+            if i == 1
+                push!(row, string(q))
+            else
+                push!(row, "")
+            end
+            push!(row, string(i))
+            for k in 1:nm
+                m = meths[k]
+                est = nothing
+                for e in estimate_tuples
+                    if smethod(e.method) == smethod(m) && e.q == q
+                        est = e
+                        break
+                    end
+                end
+                if est === nothing
+                    append!(row, fill("", data_cols_per_method))
+                else
+                    λ, ψ = est.lambda, est.psi
+                    for j in 1:maxq
+                        if j <= size(λ, 2)
+                            push!(row, fmt(λ[i, j]))
+                        else
+                            push!(row, "")
+                        end
+                    end
+                    push!(row, fmt(ψ[i]))
+                end
+                if k < nm
+                    push!(row, "")
+                end
+            end
+            println(io, join(row, " & "), " \\\\")
+        end
+        if qi < length(qs) println(io, "\\midrule") end
+    end
+
+    println(io, "\\bottomrule")
+    println(io, "\\end{tabular}")
+    println(io, "\\end{adjustbox}")
+    println(io, "\\end{table}")
+    if self_contained println(io, "\\end{document}") end
+    seekstart(io); print(String(take!(io)))
+end
+
+# Maxwell data 
+upper_triangular = [
+    1.000 0.345 0.594 0.404 0.579 0.280 0.449 0.188 0.303 0.200;
+    0.000 1.000 0.477 0.338 0.230 0.159 0.205 0.120 0.168 0.145;
+    0.000 0.000 1.000 0.498 0.505 0.251 0.377 0.186 0.273 0.154;
+    0.000 0.000 0.000 1.000 0.389 0.168 0.249 0.173 0.195 0.055;
+    0.000 0.000 0.000 0.000 1.000 0.151 0.285 0.129 0.159 0.079;
+    0.000 0.000 0.000 0.000 0.000 1.000 0.363 0.359 0.227 0.260;
+    0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.448 0.439 0.511;
+    0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.429 0.316;
+    0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.301;
+    0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000
+]
+
+p = size(upper_triangular, 1)
+maxwell_data = copy(upper_triangular)
+for i in 1:p
+    for j in i+1:p
+        maxwell_data[j, i] = maxwell_data[i, j]
+    end
+end
+
+# Emmett data 
+upper_triangular = [
+    1.000 0.523 0.395 0.471 0.346 0.426 0.576 0.434 0.639
+    0.000 1.000 0.479 0.506 0.418 0.462 0.547 0.283 0.645
+    0.000 0.000 1.000 0.355 0.270 0.254 0.452 0.219 0.504
+    0.000 0.000 0.000 1.000 0.691 0.791 0.443 0.285 0.505
+    0.000 0.000 0.000 0.000 1.000 0.679 0.383 0.149 0.409
+    0.000 0.000 0.000 0.000 0.000 1.000 0.372 0.314 0.472
+    0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.385 0.680
+    0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.470
+    0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000
+]
+
+p = size(upper_triangular, 1)
+emmett_data = copy(upper_triangular)
+for i in 1:p
+    for j in i+1:p
+        emmett_data[j, i] = emmett_data[i, j]
+    end
+end
+
+# Davis data 
+upper_triangular = [
+    1.00 0.72 0.41 0.28 0.52 0.71 0.68 0.51 0.68
+    0.00 1.00 0.34 0.36 0.53 0.71 0.68 0.52 0.68
+    0.00 0.00 1.00 0.16 0.34 0.43 0.42 0.28 0.41
+    0.00 0.00 0.00 1.00 0.30 0.36 0.35 0.29 0.36
+    0.00 0.00 0.00 0.00 1.00 0.64 0.55 0.45 0.55
+    0.00 0.00 0.00 0.00 0.00 1.00 0.76 0.57 0.76
+    0.00 0.00 0.00 0.00 0.00 0.00 1.00 0.59 0.68
+    0.00 0.00 0.00 0.00 0.00 0.00 0.00 1.00 0.58
+    0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 1.00
+]
+
+p = size(upper_triangular, 1)
+davis_data = copy(upper_triangular)
+for i in 1:p
+    for j in i+1:p
+        davis_data[j, i] = davis_data[i, j]
+    end
+end
+
+# Table 3
+
+## Optimiation methods for best fit 
+meths = [Optim.NewtonTrustRegion()] 
+loglikls = fill(NaN, length(meths)) 
+
+## Davis data 
+qs = [1, 2]
+p = size(davis_data, 1) 
+n = 421
+
+estimate_tuples = () 
+for q in qs
+    for (i, method) in enumerate(meths) 
+        try 
+            loglikls[i] = fit_factor_model(davis_data, q; optimizer = method, max_iter_EM = 100, covar = true, n = n, comp_pen = hirose_pen, scaling = (n,p,q) -> sqrt(2 / n)).loglikl 
+        catch  
+            loglikls[i] = -Inf 
+        end 
+    end 
+    mspl = fit_factor_model(davis_data, q; optimizer = meths[argmax(loglikls)], max_iter_EM = 100, covar = true, n = n, comp_pen = akaike_pen, scaling = (n,p,q) -> sqrt(2 / n)) 
+    mspl2 = fit_factor_model(davis_data, q; optimizer = meths[argmax(loglikls)], max_iter_EM = 100, covar = true, n = n, comp_pen = hirose_pen, scaling = (n,p,q) -> sqrt(2 / n)) 
+    ml = fit_factor_model(davis_data, q; optimizer = meths[argmax(loglikls)], max_iter_EM = 100, covar = true, n = n, theta_start = mspl.theta) 
+    
+    AIC = -2  * ml.loglikl + 2 * p * (q + 1) - q * (q - 1)
+    BIC = -2  * ml.loglikl + (p * (q + 1) - q * (q - 1) / 2)  * log(n)
+    estimate_tuples = (estimate_tuples...,(method = "ML", q = q, psi = diag(ml.Psi), lambda = ml.Lambda, AIC = AIC, BIC = BIC))
+    
+    AIC = -2  * mspl.loglikl + 2 * p * (q + 1) - q * (q - 1)
+    BIC = -2  * mspl.loglikl + (p * (q + 1) - q * (q - 1) / 2)  * log(n)
+    estimate_tuples = (estimate_tuples...,(method = "Akaike[\$n^{-1/2}\$]", q = q, psi = diag(mspl.Psi), lambda = mspl.Lambda, AIC = AIC, BIC = BIC))
+
+    AIC = -2  * mspl2.loglikl + 2 * p * (q + 1) - q * (q - 1)
+    BIC = -2  * mspl2.loglikl + (p * (q + 1) - q * (q - 1) / 2)  * log(n)
+    estimate_tuples = (estimate_tuples...,(method = "Hirose[\$n^{-1/2}\$]", q = q, psi = diag(mspl2.Psi), lambda = mspl2.Lambda, AIC = AIC, BIC = BIC))
+end 
+davis_estimate_tuples = estimate_tuples 
+
+## Emmett data  
+qs = 1:5
+p = size(emmett_data, 1) 
+n = 211
+estimate_tuples = () 
+for q in qs
+    for (i, method) in enumerate(meths) 
+        try 
+            loglikls[i] = fit_factor_model(emmett_data, q; optimizer = method, max_iter_EM = 100, covar = true, n = n, comp_pen = hirose_pen, scaling = (n,p,q) -> sqrt(2 / n)).loglikl 
+            if loglikls[i] > 1e6
+                loglikls[i] = -Inf 
+            end 
+        catch  
+            loglikls[i] = -Inf 
+        end 
+    end 
+    mspl = fit_factor_model(emmett_data, q; optimizer = meths[argmax(loglikls)], max_iter_EM = 100, covar = true, n = n, comp_pen = akaike_pen, scaling = (n,p,q) -> sqrt(2 / n)) 
+    mspl2 = fit_factor_model(emmett_data, q; optimizer = meths[argmax(loglikls)], max_iter_EM = 100, covar = true, n = n, comp_pen = hirose_pen, scaling = (n,p,q) -> sqrt(2 / n)) 
+    ml = fit_factor_model(emmett_data, q; optimizer = meths[argmax(loglikls)], max_iter_EM = 100, covar = true, n = n, theta_start = mspl.theta) 
+    
+    AIC = -2  * ml.loglikl + 2 * p * (q + 1) - q * (q - 1)
+    BIC = -2  * ml.loglikl + (p * (q + 1) - q * (q - 1) / 2)  * log(n)
+    estimate_tuples = (estimate_tuples...,(method = "ML", q = q, psi = diag(ml.Psi), lambda = ml.Lambda, AIC = AIC, BIC = BIC))
+    
+    AIC = -2  * mspl.loglikl + 2 * p * (q + 1) - q * (q - 1)
+    BIC = -2  * mspl.loglikl + (p * (q + 1) - q * (q - 1) / 2)  * log(n)
+    estimate_tuples = (estimate_tuples...,(method = "Akaike[\$n^{-1/2}\$]", q = q, psi = diag(mspl.Psi), lambda = mspl.Lambda, AIC = AIC, BIC = BIC))
+
+    AIC = -2  * mspl2.loglikl + 2 * p * (q + 1) - q * (q - 1)
+    BIC = -2  * mspl2.loglikl + (p * (q + 1) - q * (q - 1) / 2)  * log(n)
+    estimate_tuples = (estimate_tuples...,(method = "Hirose[\$n^{-1/2}\$]", q = q, psi = diag(mspl2.Psi), lambda = mspl2.Lambda, AIC = AIC, BIC = BIC))
+end 
+emmett_estimate_tuples = estimate_tuples 
+
+## Maxwell data  
+qs = 1:4
+p = size(maxwell_data, 1) 
+n = 809
+
+estimate_tuples = () 
+for q in qs 
+    for (i, method) in enumerate(meths) 
+        try 
+            loglikls[i] = fit_factor_model(maxwell_data, q; optimizer = method, max_iter_EM = 100, covar = true, n = n, comp_pen = hirose_pen, scaling = (n,p,q) -> sqrt(2 / n)).loglikl 
+        catch  
+            loglikls[i] = -Inf 
+        end 
+    end 
+    mspl = fit_factor_model(maxwell_data, q; optimizer = meths[argmax(loglikls)], max_iter_EM = 100, covar = true, n = n, comp_pen = akaike_pen, scaling = (n,p,q) -> sqrt(2 / n)) 
+    mspl2 = fit_factor_model(maxwell_data, q; optimizer = meths[argmax(loglikls)], max_iter_EM = 100, covar = true, n = n, comp_pen = hirose_pen, scaling = (n,p,q) -> sqrt(2 / n)) 
+    ml = fit_factor_model(maxwell_data, q; optimizer = meths[argmax(loglikls)], max_iter_EM = 100, covar = true, n = n, theta_start = mspl.theta) 
+    
+    AIC = -2  * ml.loglikl + 2 * p * (q + 1) - q * (q - 1)
+    BIC = -2  * ml.loglikl + (p * (q + 1) - q * (q - 1) / 2)  * log(n)
+    estimate_tuples = (estimate_tuples...,(method = "ML", q = q, psi = diag(ml.Psi), lambda = ml.Lambda, AIC = AIC, BIC = BIC))
+    
+    AIC = -2  * mspl.loglikl + 2 * p * (q + 1) - q * (q - 1)
+    BIC = -2  * mspl.loglikl + (p * (q + 1) - q * (q - 1) / 2)  * log(n)
+    estimate_tuples = (estimate_tuples...,(method = "Akaike[\$n^{-1/2}\$]", q = q, psi = diag(mspl.Psi), lambda = mspl.Lambda, AIC = AIC, BIC = BIC))
+
+    AIC = -2  * mspl2.loglikl + 2 * p * (q + 1) - q * (q - 1)
+    BIC = -2  * mspl2.loglikl + (p * (q + 1) - q * (q - 1) / 2)  * log(n)
+    estimate_tuples = (estimate_tuples...,(method = "Hirose[\$n^{-1/2}\$]", q = q, psi = diag(mspl2.Psi), lambda = mspl2.Lambda, AIC = AIC, BIC = BIC))
+end 
+maxwell_estimate_tuples = estimate_tuples
+
+print_communalities_master_table(
+    (name = "Davis data",  p = size(davis_data,1),   qs = [1,2], estimates = davis_estimate_tuples),
+    (name = "Emmett data", p = size(emmett_data,1),  qs = 1:5,   estimates = emmett_estimate_tuples),
+    (name = "Maxwell data",p = size(maxwell_data,1), qs = 1:4,   estimates = maxwell_estimate_tuples);
+    caption = "",
+    width = 1,
+    use_small = true,
+    self_contained = true,
+    heywood_eps = 0.0
+)
+
+# Table S1 
+qs = [1, 2]
+print_estimates_table(size(davis_data,1), 
+    qs, 
+    ["ML", "Akaike[\$n^{-1/2}\$]", "Hirose[\$n^{-1/2}\$]"], 
+    davis_estimate_tuples...;
+    caption = ""
+)
+
+# Table S2 
+qs = 1:5
+print_estimates_table(size(emmett_data,1), 
+    qs, 
+    ["ML", "Akaike[\$n^{-1/2}\$]", "Hirose[\$n^{-1/2}\$]"], 
+    emmett_estimate_tuples...;
+    caption = ""
+)
+
+# Table S3
+qs = 1:4
+print_estimates_table(size(maxwell_data,1), 
+    qs, 
+    ["ML", "Akaike[\$n^{-1/2}\$]", "Hirose[\$n^{-1/2}\$]"], 
+    maxwell_estimate_tuples...;
+    caption = ""
+)

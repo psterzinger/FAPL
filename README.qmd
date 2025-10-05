@@ -1,0 +1,127 @@
+---
+title: 'Supplementary material for "Maximum softly penalized likelihood in factor analysis"'
+author:
+  - name: "Philipp Sterzinger"
+    email: p.sterzinger@lse.ac.uk
+    affiliation: London School of Economics
+    url: https://www.lse.ac.uk/statistics/people/philipp-sterzinger
+  - name: "Ioannis Kosmidis"
+    email: ioannis.kosmidis@warwick.ac.uk
+    affiliation: University of Warwick
+    url: https://www.ikosmidis.com
+  - name: "Irini Moustaki"
+    email: i.moustaki@lse.ac.uk
+    affiliation: London School of Economics
+    url: https://www.lse.ac.uk/statistics/people/irini-moustaki
+date: last-modified
+date-format: long
+format: md
+---
+
+# Directory structure
+
+```{r}
+#| echo: false
+#| message: false
+library("tinytable")
+library("JuliaCall")
+julia_pkgs <- data.frame(Package = sort(c('CairoMakie', 
+  'ColorSchemes', 
+  'DataFrames', 
+  'Distributed', 
+  'Distributions', 
+  'FiniteDiff', 
+  'ForwardDiff', 
+  'GeometryBasics', 
+  'JLD2', 
+  'LaTeXStrings', 
+  'Latexify', 
+  'LineSearches', 
+  'LinearAlgebra', 
+  'Optim', 
+  'PrettyTables', 
+  'Printf', 
+  'Random', 
+  'Statistics')))
+julia_v <- JuliaCall::julia_eval("string(VERSION)")
+julia_pkgs_v <- julia_pkgs |> transform(Version = sapply(julia_pkgs$Package, julia_installed_package))
+rownames(julia_pkgs_v) <- NULL
+```
+
+
+The directory `code/` contains the Julia scripts that reproduce
+all the numerical results and figures in the manuscript
+
+> Sterzinger P, Kosmidis I and Moustaki I (2025). Maximum softly penalized likelihood in factor analysis. ** add arxiv link ** 
+
+and the Supplementary Material document [`fapl-supplementary.pdf`](fapl-supplementary.pdf).
+
+The directory `code/methods/` contains methods that the scripts in `code/` use.
+
+The directory `results/` will be populated by files that store the
+numerical results the scripts produce. Due to storage constraints, 
+it is left empty.
+
+The directory `figures/` is populated by graphics that the scripts
+produce.
+
+# R version and contributed packages
+
+All results are reproducible using Julia version `{r} julia_v` and the contributed packages
+```{r}
+#| echo: false
+tt(julia_pkgs_v)
+```
+
+# Reproducing the results
+
+
+## Path
+
+All scripts specify the path to the supplementary material path as
+`supp_path`. This is currently set to `abspath(joinpath(@__DIR__, ".."))` assuming that the working
+directory for Julia is set to the `code` folder of the current `git` repository. If
+this is not the case for your setup, you should set `supp_path`
+appropriately.
+
+## Parallel computation
+
+In each Julia scripts relying on parallel computation,
+`num_workers` (currently set to `8`) sets the number of cores to use.
+
+
+Parallel computing in the Julia scripts uses the Julia packages
+`Distributed`. See [Parallel
+Computing](https://docs.julialang.org/en/v1/manual/parallel-computing/)
+in Julia's documentation for more details.
+
+## Details
+
+The following table lists the R and Julia scripts that need to be
+executed in order to reproduce the results. The table also lists the
+outputs from each script, and their label if they are shown in the
+main text or the Supplementary Material document. Some of the outputs
+are intermediate results, so the scripts should be executed in the
+order shown.
+
+
+| Script                                                                                        | Output                                                                                 | Label     |
+|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------|-----------|
+| [01-1-factor-model-sim.jl](code/01-1-factor-model-sim.jl)                                     | [01-1-fapl-sim-*.jld2](results/)                                                       |           |
+| [01-2-aggregate-sim.jl](code/01-2-aggregate-sim.jl)                                           | [01-2-full-sim.jld2](results/)                                                         |           |
+| [01-3-perc-HW-plot.jl](code/01-3-perc-HW-plot.jl)                                             | [perc-HW.pdf](figures/perc-HW.pdf)                                                     | Figure 1  |
+| [02-violin-plots.jl](code/02-violin-plots.jl)                                                 | [violin-q3.pdf](figures/violin-q3.pdf)                                                 | Figure 2  |
+| [02-violin-plots.jl](code/02-violin-plots.jl)                                                 | [violin-q5.pdf](figures/violin-q5.pdf)                                                 | Figure S1 |
+| [02-violin-plots.jl](code/02-violin-plots.jl)                                                 | [violin-q8.pdf](figures/violin-q8.pdf)                                                 | Figure S2 |
+| [03-1-model-select-sim.jl](code/03-1-model-select-sim.jl)                                     | [03-1-fapl-MS-sim-*.jld2](results/)                                                    |           |
+| [03-2-aggregate-model-select-sim.jl](code/03-2-aggregate-model-select-sim.jl)                 | [03-2-full-sim-model-select.jld2](results/)                                            |           |
+| [03-3-model-select-plot.jl](code/03-3-model-select-plot.jl)                                   | [model-select-perc-correct.pdf](figures/model-select-perc-correct.pdf)                 | Figure 3  |
+| [04-model-select-table.jl](code/04-model-select-table.jl)                                     |                                                                                        | Table 2   |
+| [05-numerical-examples.jl](code/05-numerical-examples.jl)                                     |                                                                                        | Table 3   |
+| [05-numerical-examples.jl](code/05-numerical-examples.jl)                                     |                                                                                        | Table S1  |
+| [05-numerical-examples.jl](code/05-numerical-examples.jl)                                     |                                                                                        | Table S2  |
+| [05-numerical-examples.jl](code/05-numerical-examples.jl)                                     |                                                                                        | Table S3  |
+
+
+
+

@@ -8,7 +8,8 @@ The directory `code/` contains the Julia scripts that reproduce all the
 numerical results and figures in the manuscript
 
 > Sterzinger P, Kosmidis I and Moustaki I (2025). Maximum softly
-> penalized likelihood in factor analysis. \*\* add arxiv link \*\*
+> penalized likelihood in factor analysis.
+> https://arxiv.org/abs/2510.06465
 
 and the Supplementary Material document
 [`fapl-supplementary.pdf`](fapl-supplementary.pdf).

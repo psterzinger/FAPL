@@ -1,6 +1,7 @@
-# Supplementary material for “Maximum softly penalised likelihood in factor analysis”
+# Supplementary material for “Maximum softly penalised likelihood in
+factor analysis”
 Philipp Sterzinger, Ioannis Kosmidis, Irini Moustaki
-October 5, 2025
+October 9, 2025
 
 # Directory structure
 
@@ -8,8 +9,8 @@ The directory `code/` contains the Julia scripts that reproduce all the
 numerical results and figures in the manuscript
 
 > Sterzinger P, Kosmidis I and Moustaki I (2025). Maximum softly
-> penalized likelihood in factor analysis.
-> https://arxiv.org/abs/2510.06465
+> penalised likelihood in factor analysis.
+> https://arxiv.org/pdf/2510.06465
 
 and the Supplementary Material document
 [`fapl-supplementary.pdf`](fapl-supplementary.pdf).
@@ -182,12 +183,12 @@ href="code/01-1-factor-model-sim.jl">01-1-factor-model-sim.jl</a></td>
 <td>Figure 2</td>
 </tr>
 <tr class="odd">
-<td><a href="code/02-violin-plots.jl">02-violin-plots.jl</a></td>
+<td></td>
 <td><a href="figures/violin-q5.pdf">violin-q5.pdf</a></td>
 <td>Figure S1</td>
 </tr>
 <tr class="even">
-<td><a href="code/02-violin-plots.jl">02-violin-plots.jl</a></td>
+<td></td>
 <td><a href="figures/violin-q8.pdf">violin-q8.pdf</a></td>
 <td>Figure S2</td>
 </tr>
@@ -223,20 +224,17 @@ href="code/05-numerical-examples.jl">05-numerical-examples.jl</a></td>
 <td>Table 3</td>
 </tr>
 <tr class="even">
-<td><a
-href="code/05-numerical-examples.jl">05-numerical-examples.jl</a></td>
+<td></td>
 <td></td>
 <td>Table S1</td>
 </tr>
 <tr class="odd">
-<td><a
-href="code/05-numerical-examples.jl">05-numerical-examples.jl</a></td>
+<td></td>
 <td></td>
 <td>Table S2</td>
 </tr>
 <tr class="even">
-<td><a
-href="code/05-numerical-examples.jl">05-numerical-examples.jl</a></td>
+<td></td>
 <td></td>
 <td>Table S3</td>
 </tr>

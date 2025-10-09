@@ -52,7 +52,8 @@ rownames(julia_pkgs_v) <- NULL
 The directory `code/` contains the Julia scripts that reproduce
 all the numerical results and figures in the manuscript
 
-> Sterzinger P, Kosmidis I and Moustaki I (2025). Maximum softly penalised likelihood in factor analysis. ** add arxiv link ** 
+> Sterzinger P, Kosmidis I and Moustaki I (2025). Maximum softly penalised likelihood in factor analysis. 
+> https://arxiv.org/pdf/2510.06465
 
 and the Supplementary Material document [`fapl-supplementary.pdf`](fapl-supplementary.pdf).
 
@@ -111,16 +112,16 @@ order shown.
 | [01-2-aggregate-sim.jl](code/01-2-aggregate-sim.jl)                                           | [01-2-full-sim.jld2](results/)                                                         |           |
 | [01-3-perc-HW-plot.jl](code/01-3-perc-HW-plot.jl)                                             | [perc-HW.pdf](figures/perc-HW.pdf)                                                     | Figure 1  |
 | [02-violin-plots.jl](code/02-violin-plots.jl)                                                 | [violin-q3.pdf](figures/violin-q3.pdf)                                                 | Figure 2  |
-| [02-violin-plots.jl](code/02-violin-plots.jl)                                                 | [violin-q5.pdf](figures/violin-q5.pdf)                                                 | Figure S1 |
-| [02-violin-plots.jl](code/02-violin-plots.jl)                                                 | [violin-q8.pdf](figures/violin-q8.pdf)                                                 | Figure S2 |
+|                                                                                               | [violin-q5.pdf](figures/violin-q5.pdf)                                                 | Figure S1 |
+|                                                                                               | [violin-q8.pdf](figures/violin-q8.pdf)                                                 | Figure S2 |
 | [03-1-model-select-sim.jl](code/03-1-model-select-sim.jl)                                     | [03-1-fapl-MS-sim-*.jld2](results/)                                                    |           |
 | [03-2-aggregate-model-select-sim.jl](code/03-2-aggregate-model-select-sim.jl)                 | [03-2-full-sim-model-select.jld2](results/)                                            |           |
 | [03-3-model-select-plot.jl](code/03-3-model-select-plot.jl)                                   | [model-select-perc-correct.pdf](figures/model-select-perc-correct.pdf)                 | Figure 3  |
 | [04-model-select-table.jl](code/04-model-select-table.jl)                                     |                                                                                        | Table 2   |
 | [05-numerical-examples.jl](code/05-numerical-examples.jl)                                     |                                                                                        | Table 3   |
-| [05-numerical-examples.jl](code/05-numerical-examples.jl)                                     |                                                                                        | Table S1  |
-| [05-numerical-examples.jl](code/05-numerical-examples.jl)                                     |                                                                                        | Table S2  |
-| [05-numerical-examples.jl](code/05-numerical-examples.jl)                                     |                                                                                        | Table S3  |
+|                                                                                               |                                                                                        | Table S1  |
+|                                                                                               |                                                                                        | Table S2  |
+|                                                                                               |                                                                                        | Table S3  |
 
 
 
